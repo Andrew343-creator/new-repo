@@ -300,9 +300,10 @@ class InventoryApp(BoxLayout):
                     cur.execute(query,(name,id))
                     output=cur.fetchone()
 
-                    if not order_price==output[2] and selling_price==output[3]:
+                    if order_price!=output[2] and selling_price!=output[3]:
                         logging.error(f"Information error")
                         self.show_login_error_popup('Order and selling price do not match with the previous orders!!')
+                        return
                     else:
                         new_ordered=output[0]+quantity
                         new_available=output[1]+quantity
