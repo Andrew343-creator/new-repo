@@ -983,7 +983,6 @@ class InventoryApp(BoxLayout):
                     return
             else:
                     print("Not Good")
-                    return
                 
             
         except mysql.connector.Error as e:
