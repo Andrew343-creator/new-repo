@@ -295,19 +295,26 @@ class InventoryApp(BoxLayout):
 
             for result in results:
                 if name in result[0]:
-                    query="select Ordered_quantity,Available_quantity from Items where itemname=%s and ownerid=%s"
+                    
+                    query="select Ordered_quantity,Available_quantity, order_price, selling_price from Items where itemname=%s and ownerid=%s"
                     cur.execute(query,(name,id))
                     output=cur.fetchone()
 
-                    quantity=output[0]+quantity,output[1]
+                    if not order_price==output[2] and selling_price==output[3]:
+                        logging.error(f"Information error")
+                        self.show_login_error_popup('Order and selling price do not match with the previous orders!!')
+                    else:
+                        new_ordered=output[0]+quantity
+                        new_available=output[1]+quantity
 
-                    query2="UPDATE Items SET Ordered_quantity = %s, Available_quantity=%s WHERE itemname = %s AND ownerid = %s"
+                        query2="UPDATE Items SET Ordered_quantity = %s, Available_quantity=%s, date=%s WHERE itemname =%s AND ownerid = %s"
 
-                    cur.execute(query2,(quantity,quantity,name,id))
-
-                    cnx.commit()
-                    self.addition()
-                    return
+                        cur.execute(query2,(new_ordered,new_available,date,name,id,))
+                        
+                        cnx.commit()
+                        self.addition()
+                        return
+                        
                     
                     
 
