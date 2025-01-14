@@ -733,6 +733,10 @@ class InventoryApp(BoxLayout):
     def show_register_error_popup(self, message):
         popup = Popup(title='Register Error', content=Label(text=message), size_hint=(None, None), size=(400, 200))
         popup.open()
+    def failure(self):
+        # Show a popup to enter the email address to send the password reset link
+        popup = Popup(title='Code', content=Label(text='Code Already exists!.'), size_hint=(None, None), size=(400, 200))
+        popup.open()
     
     def addition(self):
         # Show a popup to enter the email address to send the password reset link
@@ -767,9 +771,49 @@ class InventoryApp(BoxLayout):
     def sell_item(self, instance):
         self.clear_widgets()
         self.sell_form()
+
+    def sell_item_at_discount(self, instance):
+        self.clear_widgets()
+        self.sad_form()
+
     def discount(self, instance):
         self.clear_widgets()
         self.discount_form()
+    
+
+    def sad_form(self):
+        self.title_label = Label(text='Inventory Management', font_size=24)
+        self.add_widget(self.title_label)
+
+        self.sditemname_label = Label(text="Item name:")
+        self.add_widget(self.sditemname_label)
+
+        self.sditemname_input = TextInput(multiline=False)
+        self.add_widget(self.sditemname_input)
+
+        self.sdquantity_label = Label(text="Quantity:")
+        self.add_widget(self.sdquantity_label)
+
+        self.sdquantity_input = TextInput(multiline=False)
+        self.add_widget(self.sdquantity_input)
+
+        self.sdcode_label = Label(text="Discount Code:")
+        self.add_widget(self.sdquantity_label)
+
+        self.sdcode_input = TextInput(multiline=False)
+        self.add_widget(self.sdcode_input)
+
+        
+
+        self.sad_button = Button(text='Sell item At Discount.', font_size=18)
+        self.sad_button.bind(on_press=self.sell_at_discount)
+        self.add_widget(self.sad_button)
+
+        self.back_button = Button(text='Back', font_size=18)
+        self.back_button.bind(on_press=self.Accounting)
+        self.add_widget(self.back_button)
+
+
 
     def sell_form(self):
         self.title_label = Label(text='Inventory Management', font_size=24)
@@ -787,37 +831,172 @@ class InventoryApp(BoxLayout):
         self.squantity_input = TextInput(multiline=False)
         self.add_widget(self.squantity_input)
 
-        self.register_button = Button(text='Sell item', font_size=18)
+        self.register_button = Button(text='Sell item At original price.', font_size=18)
         self.register_button.bind(on_press=self.sell)
+        self.add_widget(self.register_button)
+
+        self.register_button = Button(text='Sell item At Discount.', font_size=18)
+        self.register_button.bind(on_press=self.sell_item_at_discount)
         self.add_widget(self.register_button)
 
         self.back_button = Button(text='Back', font_size=18)
         self.back_button.bind(on_press=self.Accounting)
         self.add_widget(self.back_button)
+
     def discount_form(self):
         self.title_label = Label(text='Inventory Management', font_size=24)
         self.add_widget(self.title_label)
 
-        self.sitemname_label = Label(text="Discount code name:")
-        self.add_widget(self.sitemname_label)
+        self.code1_label = Label(text="Code name:")
+        self.add_widget(self.code1_label)
 
-        self.sitemname_input = TextInput(multiline=False)
-        self.add_widget(self.sitemname_input)
+        self.code1_input = TextInput(multiline=False)
+        self.add_widget(self.code1_input)
 
-        self.squantity_label = Label(text="Amount:")
-        self.add_widget(self.squantity_label)
+        self.amount1_label = Label(text="Amount:")
+        self.add_widget(self.amount1_label)
 
-        self.squantity_input = TextInput(multiline=False)
-        self.add_widget(self.squantity_input)
+        self.amount1_input = TextInput(multiline=False)
+        self.add_widget(self.amount1_input)
 
-        self.register_button = Button(text='Create', font_size=18)
-        self.register_button.bind(on_press=self.sell)
-        self.add_widget(self.register_button)
+        self.create_button = Button(text='Create', font_size=18)
+        self.create_button.bind(on_press=self.discount1)
+        self.add_widget(self.create_button)
 
         self.back_button = Button(text='Back', font_size=18)
         self.back_button.bind(on_press=self.Accounting)
         self.add_widget(self.back_button)
-        
+
+    def discount1(self,instance):
+        try:
+            cnx = mysql.connector.connect(
+                user='Practice',
+                password='Root',
+                host='localhost',
+                database='inventory'
+            )
+            cur = cnx.cursor()
+
+            query2 = "SELECT id FROM Owner WHERE username = %s"
+            cur.execute(query2, (self.username_input.text,))
+
+            id_list = cur.fetchone()
+
+            id = id_list[0]
+
+            code = str(self.code1_input.text.strip())
+            amount = int(self.amount1_input.text.strip())
+            date=datetime.now()
+
+            cur.execute("select code from Codes where ownerid=%s",(id,))
+
+            code_list=cur.fetchall()
+
+            for codes in code_list:
+                if code in code_list[0]:                      
+                    logging.error(f"Input Error.")
+                    self.show_login_error_popup('Discount Code Exists!')
+                    return
+                    
+            query4 = "INSERT INTO Codes(code, amount, ownerid, date) VALUES (%s, %s, %s, %s)"
+            cur.execute(query4, (code,amount,id,date))
+
+            cnx.commit()
+            cnx.close()
+            self.addition()
+        except mysql.connector.Error as e:
+            logging.error(f"Database error: {e}")
+            self.show_login_error_popup('Database error')
+        except ValueError:
+            logging.error(f"Input Error.")
+            self.show_login_error_popup('Please enter the correct details!')
+    def sell_at_discount(self, instance):
+        cnx = None
+        cur = None
+        try:
+            # Establish a connection to the database
+            cnx = mysql.connector.connect(
+                user='Practice',
+                password='Root',
+                host='localhost',
+                database='inventory'
+            )
+            cur = cnx.cursor()
+
+            # Fetch the owner ID based on the username
+            username = self.username_input.text.strip()
+            if not username:
+                self.show_login_error_popup('Username cannot be empty.')
+                return
+
+            query_owner_id = "SELECT id FROM Owner WHERE username = %s"
+            cur.execute(query_owner_id, (username,))
+            owner_id_result = cur.fetchone()
+
+            if owner_id_result is None:
+                self.item_does_not_exist()  # Handle case where username is not found
+                return
+
+            owner_id = owner_id_result[0]
+
+            # Get item details from user input
+            item_name = self.sitemname_input.text.strip()
+            quantity_to_sell = int(self.squantity_input.text.strip())
+            discount_code=self.sdcode_input.text.strip()
+            current_date = datetime.now()
+            try:
+                # Get discount codes from user database and pair with amount
+                cur.execute("select amount from Codes where ownerid=%s and code=%s",(id,discount_code))
+                amount_list=cur.fetchone()
+                discount_amount=float(amount_list[0])
+
+                # Check if the item exists and get available quantity
+                query_item = "SELECT id, Available_quantity, selling_price FROM Items WHERE itemname = %s AND ownerid = %s"
+                cur.execute(query_item, (item_name, owner_id))
+                item_result = cur.fetchone()
+
+                if item_result is None:
+                    self.item_does_not_exist()  # Handle case where item does not exist
+                    return
+
+                item_id, available_quantity,sell_price = item_result
+
+                # Check if there is enough quantity available
+                if quantity_to_sell > available_quantity:
+                    self.quantity_does_not_exist()  # Handle case where quantity is insufficient
+                    return
+                #Calculate the new sell price after discount
+                new_sell_price=float(sell_price-discount_amount)
+                # Insert the sale record
+                insert_query = "INSERT INTO Sold(itemid, sold_quantity,selling price, date) VALUES (%s, %s, %s,%s)"
+                cur.execute(insert_query, (item_id, quantity_to_sell, new_sell_price,current_date))
+
+                # Update the available quantity in the Items table
+                new_available_quantity = available_quantity - quantity_to_sell
+                update_query = "UPDATE Items SET Available_quantity = %s WHERE id = %s"
+                cur.execute(update_query, (new_available_quantity, item_id))
+
+                # Commit the changes
+                cnx.commit()
+                self.sellation()  # Notify user of successful sale
+                return
+            except:
+                logging.error(f"Code error")
+                self.show_login_error_popup('Invalid discount code used.')
+                return
+
+        except mysql.connector.Error as e:
+            logging.error(f"Database error: {e}")
+            self.show_login_error_popup('Database error')
+        except Exception as e:
+            logging.error(f"Unexpected error: {e}")
+            self.show_login_error_popup('An unexpected error occurred')
+        finally:
+            # Ensure the cursor and connection are closed
+            if cur:
+                cur.close()
+            if cnx:
+                cnx.close()
     
     def sell(self, instance):
         cnx = None
@@ -853,8 +1032,8 @@ class InventoryApp(BoxLayout):
             quantity_to_sell = int(self.squantity_input.text.strip())
             current_date = datetime.now()
 
-            # Check if the item exists and get available quantity
-            query_item = "SELECT id, Available_quantity FROM Items WHERE itemname = %s AND ownerid = %s"
+            # Check if the item exists and get available quantity and selling price
+            query_item = "SELECT id, Available_quantity,selling_price FROM Items WHERE itemname = %s AND ownerid = %s"
             cur.execute(query_item, (item_name, owner_id))
             item_result = cur.fetchone()
 
@@ -862,7 +1041,7 @@ class InventoryApp(BoxLayout):
                 self.item_does_not_exist()  # Handle case where item does not exist
                 return
 
-            item_id, available_quantity = item_result
+            item_id, available_quantity, sell_price= item_result
 
             # Check if there is enough quantity available
             if quantity_to_sell > available_quantity:
@@ -870,8 +1049,8 @@ class InventoryApp(BoxLayout):
                 return
 
             # Insert the sale record
-            insert_query = "INSERT INTO Sold(itemid, sold_quantity, date) VALUES (%s, %s, %s)"
-            cur.execute(insert_query, (item_id, quantity_to_sell, current_date))
+            insert_query = "INSERT INTO Sold(itemid, sold_quantity,selling_price, date) VALUES (%s, %s, %s, %s)"
+            cur.execute(insert_query, (item_id, quantity_to_sell,selling_price, current_date))
 
             # Update the available quantity in the Items table
             new_available_quantity = available_quantity - quantity_to_sell
