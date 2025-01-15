@@ -61,22 +61,29 @@ def Codes():
 
     cnx.close()
 
-choice=input("""Press:
-(1)To create Owners table.
-(2)To create Items table.
-(3)To create Sold items table.
-(4)To create Discount codes table.\n""")
+i=0
 
-if choice=="1":
-    owner()
-elif choice=="2":
-    items()
-elif choice=="3":
-    sold()
-elif choice=="4":
-    Codes()
-else:
-    print("Invalid option chosen.")
+
+for i in range(4):
+
+
+    if i==0:
+        owner()
+        print("Owner table successfully created!\n")
+        i+=1
+    if i==1:
+        items()
+        print("Items table successfully created!\n")
+        i+=1
+    if i==2:
+        sold()
+        print("Sold table successfully created!\n")
+        i+=1
+    if i==3:
+        Codes()
+        print("Codes table successfully created!\n")
+        break
+    
 
 # Display total profit
             
