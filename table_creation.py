@@ -45,11 +45,27 @@ def sold():
     cnx.commit()
 
     cnx.close()
+def Codes():
+    cnx = mysql.connector.connect(
+                user="Practice",
+                password="Root",
+                host="localhost",
+                database="inventory")
+    cur=cnx.cursor()
+
+    query="CREATE TABLE IF NOT EXISTS Codes(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,code VARCHAR(255)NOT NULL,amount INT NOT NULL,ownerid INT NOT NULL, date DATETIME NOT NULL,FOREIGN KEY (ownerid) REFERENCES Owner(id))"
+
+    cur.execute(query)
+
+    cnx.commit()
+
+    cnx.close()
 
 choice=input("""Press:
 (1)To create Owners table.
 (2)To create Items table.
-(3)To create Sold items table.\n""")
+(3)To create Sold items table.
+(4)To create Discount codes table.\n""")
 
 if choice=="1":
     owner()
@@ -57,5 +73,10 @@ elif choice=="2":
     items()
 elif choice=="3":
     sold()
+elif choice=="4":
+    Codes()
 else:
     print("Invalid option chosen.")
+
+# Display total profit
+            

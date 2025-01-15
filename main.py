@@ -625,22 +625,22 @@ class InventoryApp(BoxLayout):
         self.register_form()
 
     def register_form(self):
-        self.title_label = Label(text='Register', font_size=24)
+        self.title_label = Label(text='Register', font_size=24,color='black')
         self.add_widget(self.title_label)
 
-        self.username_label = Label(text='Username:')
+        self.username_label = Label(text='Username:',color='black')
         self.add_widget(self.username_label)
 
         self.username_input = TextInput(multiline=False, font_size=18)
         self.add_widget(self.username_input)
 
-        self.password_label = Label(text='Password:')
+        self.password_label = Label(text='Password:',color='black')
         self.add_widget(self.password_label)
 
         self.password_input = TextInput(password=True, multiline=False, font_size=18)
         self.add_widget(self.password_input)
 
-        self.confirm_password_label = Label(text='Confirm Password:')
+        self.confirm_password_label = Label(text='Confirm Password:',color='black')
         self.add_widget(self.confirm_password_label)
 
         self.confirm_password_input = TextInput(password=True, multiline=False, font_size=18)
@@ -1074,6 +1074,121 @@ class InventoryApp(BoxLayout):
                 cur.close()
             if cnx:
                 cnx.close()
+    def attained_profits(self, instance):
+        cnx = None
+        cur = None
+        try:
+            # Establish a connection to the database
+            cnx = mysql.connector.connect(
+                user='Practice',
+                password='Root',
+                host='localhost',
+                database='inventory'
+            )
+            cur = cnx.cursor()
+
+            # Fetch the owner ID based on the username
+            username = self.username_input.text.strip()
+            if not username:
+                self.show_login_error_popup('Username cannot be empty.')
+                return
+
+            query_owner_id = "SELECT id FROM Owner WHERE username = %s"
+            cur.execute(query_owner_id, (username,))
+            owner_id_result = cur.fetchone()
+
+            if owner_id_result is None:
+                self.show_login_error_popup('User not found.')
+                return
+
+            owner_id = owner_id_result[0]
+
+            # Fetch sales history
+            query_sales_history = """
+            SELECT Items.itemname, Sold.sold_quantity, Items.order_price,Sold.selling_price,Sold.discount_amount,Sold.date 
+            FROM Items 
+            INNER JOIN Sold ON Items.id = Sold.itemid 
+            WHERE Items.ownerid = %s
+            """
+            cur.execute(query_sales_history, (owner_id,))
+            sales_history_results = cur.fetchall()
+
+            # Clear existing widgets
+            self.clear_widgets()
+
+            # Create a main layout
+            main_layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+
+            # Title Label
+            title_label = Label(text='Sales History', font_size=24, bold=True, color=(0, 0, 0, 1))
+            main_layout.add_widget(title_label)
+
+            # Create a ScrollView for the sales history items
+            scroll_view = ScrollView(size_hint=(1, None), size=(400, 400))
+            grid_layout = GridLayout(cols=6, size_hint_y=None)
+            grid_layout.bind(minimum_height=grid_layout.setter('height'))
+
+            # Add headers
+            headers = ["Item Name","Sold Quantity","Order Price","Selling Price","Discount", "Date"]
+            for header in headers:
+                header_label = Label(text=header, size_hint_y=None, height=40, bold=True)
+                grid_layout.add_widget(header_label)
+
+            # Check if there are results and add sales history items to the grid layout
+            if sales_history_results:
+                for item in sales_history_results:
+                    for value in item:
+                        item_label = Label(
+                            text=str(value),
+                            size_hint_y=None,
+                            height=40
+                        )
+                        grid_layout.add_widget(item_label)
+            else:
+                no_data_label = Label(text="No sales history found.", size_hint_y=None, height=40)
+                grid_layout.add_widget(no_data_label)
+
+            scroll_view.add_widget(grid_layout)
+            main_layout.add_widget(scroll_view)
+            #Attained  profit from selling 
+            total_profit = 0
+            for item in sales_history_results:
+                sold_quantity=item[1]
+                order_price=item[2]
+                selling_price = item[3]
+                profit_per_item = (selling_price - order_price) * sold_quantity
+                total_profit += profit_per_item
+            total_profit_label = Label(text=f'Total attained profit is K{total_profit}.', font_size=24, color=(0, 0.8, 0, 1))  # Green color
+            main_layout.add_widget(total_profit_label)
+            #Total Discounts given
+            total_discount = 0
+            for item in sales_history_results:
+                sold_quantity=item[1]
+                discount=item[4]
+                discount_per_item = discount * sold_quantity
+                total_discount += discount_per_item
+            total_discount_label = Label(text=f'Discount: K{total_discount}',font_size=24, color=(0, 0.8, 0, 1))  # Green color
+            main_layout.add_widget(total_discount_label)
+                  
+            # Back Button
+            back_button = Button(text='Back', font_size=18, size_hint_y=None, height=50)
+            back_button.bind(on_press=self.Accounting)
+            main_layout.add_widget(back_button)
+
+            self.add_widget(main_layout)
+
+        except mysql.connector.Error as e:
+            logging.error(f"Database error: {e}")
+            self.show_login_error_popup('Database error')
+        except Exception as e:
+            logging.error(f"Unexpected error: {e}")
+            self.show_login_error_popup('An unexpected error occurred')
+        finally:
+            # Ensure the cursor and connection are closed
+            if cur:
+                cur.close()
+            if cnx:
+                cnx.close()
     def Profit_inventory(self, instance):
         cnx = None
         cur = None
@@ -1119,37 +1234,53 @@ class InventoryApp(BoxLayout):
             main_layout.add_widget(title_label)
 
             # Create a ScrollView for profit data
-            scroll_view = ScrollView(size_hint=(1, None), size=(400, 300))
-            profit_layout = GridLayout(cols=1, size_hint_y=None)
-            profit_layout.bind(minimum_height=profit_layout.setter('height'))
+            scroll_view = ScrollView(size_hint=(1, None), size=(400, 400))
+            grid_layout = GridLayout(cols=4, size_hint_y=None)
+            grid_layout.bind(minimum_height=grid_layout.setter('height'))
 
+            # Add headers
+            headers = ["Item Name","Ordered Quantity","Order Price","Selling Price"]
+            for header in headers:
+                header_label = Label(text=header, size_hint_y=None, height=40, bold=True)
+                grid_layout.add_widget(header_label)
+
+            # Check if there are results and add sales history items to the grid layout
+            if profit_data:
+                for item in profit_data:
+                    for value in item:
+                        item_label = Label(
+                            text=str(value),
+                            size_hint_y=None,
+                            height=40
+                        )
+                        grid_layout.add_widget(item_label)
+            else:
+                no_data_label = Label(text="No sales history found.", size_hint_y=None, height=40)
+                grid_layout.add_widget(no_data_label)
+
+
+            scroll_view.add_widget(grid_layout)
+            main_layout.add_widget(scroll_view)
+
+            # Display total profit
             total_profit = 0
             for item in profit_data:
                 item_name, ordered_quantity, order_price, selling_price = item
                 profit_per_item = (selling_price - order_price) * ordered_quantity
                 total_profit += profit_per_item
-
-                # Display item details
-                item_label = Label(
-                    text=f"Item: {item_name}  Ordered Quantity: {ordered_quantity}  Order Price: K{order_price}  Selling Price: K{selling_price}",
-                    size_hint_y=None,
-                    height=40,
-                    color=(0, 0, 0, 1)  # Black color
-                )
-                profit_layout.add_widget(item_label)
-
-            scroll_view.add_widget(profit_layout)
-            main_layout.add_widget(scroll_view)
-
-            # Display total profit
-            total_profit_label = Label(text=f'Total profit is K{total_profit}.', font_size=24, color=(0, 0.8, 0, 1))  # Green color
+            total_profit_label = Label(text=f'Total Gross profit is K{total_profit}.', font_size=24, color=(0, 0.8, 0, 1))  # Green color
             main_layout.add_widget(total_profit_label)
 
             # Create buttons
             button_layout = BoxLayout(size_hint_y=None, height=50, spacing=10)
-            button_layout.add_widget(self.create_button('Today\'s Profit', self.calculate_daily_profit))
-            button_layout.add_widget(self.create_button('Back', self.Accounting))
-            main_layout.add_widget(button_layout)
+            # Back Button
+            back_button = Button(text='Attained Profit', font_size=18, size_hint_y=None, height=50)
+            back_button.bind(on_press=self.attained_profits)
+            main_layout.add_widget(back_button)
+    
+            back_button = Button(text='Back', font_size=18, size_hint_y=None, height=50)
+            back_button.bind(on_press=self.Accounting)
+            main_layout.add_widget(back_button)
 
             self.add_widget(main_layout)
 
