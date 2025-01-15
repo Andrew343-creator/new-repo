@@ -45,17 +45,63 @@ def sold():
     cnx.commit()
 
     cnx.close()
+def Codes():
+    cnx = mysql.connector.connect(
+                user="Practice",
+                password="Root",
+                host="localhost",
+                database="inventory")
+    cur=cnx.cursor()
 
-choice=input("""Press:
-(1)To create Owners table.
-(2)To create Items table.
-(3)To create Sold items table.\n""")
+    query="CREATE TABLE IF NOT EXISTS Codes(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,code VARCHAR(255)NOT NULL,amount INT NOT NULL,ownerid INT NOT NULL, date DATETIME NOT NULL,FOREIGN KEY (ownerid) REFERENCES Owner(id))"
 
-if choice=="1":
-    owner()
-elif choice=="2":
-    items()
-elif choice=="3":
-    sold()
-else:
-    print("Invalid option chosen.")
+    cur.execute(query)
+
+    cnx.commit()
+
+    cnx.close()
+
+def database():
+    cnx = mysql.connector.connect(
+                user="Practice",
+                password="Root",
+                host="localhost")
+    cur=cnx.cursor()
+
+    query="CREATE DATABASE IF NOT EXISTS inventory"
+
+    cur.execute(query)
+
+    cnx.commit()
+
+    cnx.close()
+
+i=0
+
+
+for i in range(5):
+
+    if i==0:
+        database()
+        print("Database available!\n")
+        i+=1
+    if i==1:
+        owner()
+        print("Owner table available!\n")
+        i+=1
+    if i==2:
+        items()
+        print("Items table available!\n")
+        i+=1
+    if i==3:
+        sold()
+        print("Sold table available!\n")
+        i+=1
+    if i==4:
+        Codes()
+        print("Codes table available!\n")
+        break
+    
+
+# Display total profit
+            
