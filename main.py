@@ -969,8 +969,8 @@ class InventoryApp(BoxLayout):
                     new_sell_price=sell_price-discount_amount
                     
                     # Insert the sale record
-                    insert_query = "INSERT INTO Sold(itemid, sold_quantity,selling_price, date) VALUES (%s, %s, %s,%s)"
-                    cur.execute(insert_query, (item_id, quantity_to_sell, new_sell_price,current_date))
+                    insert_query = "INSERT INTO Sold(itemid, sold_quantity,selling_price,discount_amount, date) VALUES (%s, %s, %s,%s,%s)"
+                    cur.execute(insert_query, (item_id, quantity_to_sell, new_sell_price,discount_amount,current_date))
 
                     # Update the available quantity in the Items table
                     new_available_quantity = available_quantity - quantity_to_sell
@@ -983,6 +983,7 @@ class InventoryApp(BoxLayout):
                     return
             else:
                     print("Not Good")
+                    return
                 
             
         except mysql.connector.Error as e:
@@ -1049,14 +1050,14 @@ class InventoryApp(BoxLayout):
                 return
 
             # Insert the sale record
-            insert_query = "INSERT INTO Sold(itemid, sold_quantity,selling_price, date) VALUES (%s, %s, %s, %s)"
-            cur.execute(insert_query, (item_id, quantity_to_sell,sell_price, current_date))
+            insert_query = "INSERT INTO Sold(itemid, sold_quantity,selling_price,discount_amount, date) VALUES (%s, %s, %s, %s,%s)"
+            cur.execute(insert_query, (item_id, quantity_to_sell,sell_price,0,current_date))
 
             # Update the available quantity in the Items table
             new_available_quantity = available_quantity - quantity_to_sell
             update_query = "UPDATE Items SET Available_quantity = %s WHERE id = %s"
             cur.execute(update_query, (new_available_quantity, item_id))
-
+            
             # Commit the changes
             cnx.commit()
             self.sellation()  # Notify user of successful sale
@@ -1208,7 +1209,7 @@ class InventoryApp(BoxLayout):
 
             # Fetch sales history
             query_sales_history = """
-            SELECT Items.itemname, Sold.sold_quantity, Items.selling_price, Sold.date 
+            SELECT Items.itemname, Sold.sold_quantity, Sold.selling_price,Sold.discount_amount,Sold.date 
             FROM Items 
             INNER JOIN Sold ON Items.id = Sold.itemid 
             WHERE Items.ownerid = %s
@@ -1228,11 +1229,11 @@ class InventoryApp(BoxLayout):
 
             # Create a ScrollView for the sales history items
             scroll_view = ScrollView(size_hint=(1, None), size=(400, 400))
-            grid_layout = GridLayout(cols=4, size_hint_y=None)
+            grid_layout = GridLayout(cols=5, size_hint_y=None)
             grid_layout.bind(minimum_height=grid_layout.setter('height'))
 
             # Add headers
-            headers = ["Item Name", "Sold Quantity", "Selling Price", "Date"]
+            headers = ["Item Name","Sold Quantity","Selling Price","Discount", "Date"]
             for header in headers:
                 header_label = Label(text=header, size_hint_y=None, height=40, bold=True)
                 grid_layout.add_widget(header_label)
@@ -1253,7 +1254,7 @@ class InventoryApp(BoxLayout):
 
             scroll_view.add_widget(grid_layout)
             main_layout.add_widget(scroll_view)
-
+                  
             # Back Button
             back_button = Button(text='Back', font_size=18, size_hint_y=None, height=50)
             back_button.bind(on_press=self.Accounting)
