@@ -61,27 +61,45 @@ def Codes():
 
     cnx.close()
 
+def database():
+    cnx = mysql.connector.connect(
+                user="Practice",
+                password="Root",
+                host="localhost")
+    cur=cnx.cursor()
+
+    query="CREATE DATABASE IF NOT EXISTS inventory"
+
+    cur.execute(query)
+
+    cnx.commit()
+
+    cnx.close()
+
 i=0
 
 
-for i in range(4):
-
+for i in range(5):
 
     if i==0:
-        owner()
-        print("Owner table successfully created!\n")
+        database()
+        print("Database available!\n")
         i+=1
     if i==1:
-        items()
-        print("Items table successfully created!\n")
+        owner()
+        print("Owner table available!\n")
         i+=1
     if i==2:
-        sold()
-        print("Sold table successfully created!\n")
+        items()
+        print("Items table available!\n")
         i+=1
     if i==3:
+        sold()
+        print("Sold table available!\n")
+        i+=1
+    if i==4:
         Codes()
-        print("Codes table successfully created!\n")
+        print("Codes table available!\n")
         break
     
 

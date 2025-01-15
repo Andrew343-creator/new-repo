@@ -12,7 +12,9 @@ import bcrypt
 import os
 import logging
 from datetime import datetime
-
+import table_creation
+#Table creation
+table_creation
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
