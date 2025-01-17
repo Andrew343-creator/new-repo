@@ -951,7 +951,9 @@ class InventoryApp(BoxLayout):
                     
                     cur.execute("select amount from Codes where ownerid=%s and code=%s",(owner_id,discount_code))
                     amount_list=cur.fetchone()
-                    discount_amount=amount_list[0]
+                    total_discount=amount_list[0]
+                    discount_per_item=total_discount/quantity_to_sell
+
 
                     # Check if the item exists and get available quantity
                     query_item = "SELECT id, Available_quantity, selling_price FROM Items WHERE itemname = %s AND ownerid = %s"
@@ -968,11 +970,11 @@ class InventoryApp(BoxLayout):
                         self.quantity_does_not_exist()  # Handle case where quantity is insufficient
                         return
                     #Calculate the new sell price after discount
-                    new_sell_price=sell_price-discount_amount
+                    new_sell_price=sell_price-discount_per_item
                     
                     # Insert the sale record
                     insert_query = "INSERT INTO Sold(itemid, sold_quantity,selling_price,discount_amount, date) VALUES (%s, %s, %s,%s,%s)"
-                    cur.execute(insert_query, (item_id, quantity_to_sell, new_sell_price,discount_amount,current_date))
+                    cur.execute(insert_query, (item_id, quantity_to_sell, new_sell_price,discount_per_item,current_date))
 
                     # Update the available quantity in the Items table
                     new_available_quantity = available_quantity - quantity_to_sell
