@@ -89,7 +89,7 @@ class InventoryApp(BoxLayout):
             id_list = cur.fetchone()
 
             if id_list is None:
-                self.show_login_error_popup('User not found')
+                self.show_popup('Error','User not found')
                 return
 
             owner_id = id_list[0]
@@ -119,10 +119,10 @@ class InventoryApp(BoxLayout):
 
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_login_error_popup('Database error')
+            self.show_popup('Database error',f'{e}')
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
-            self.show_login_error_popup('An unexpected error occurred')
+            self.show_popup('An unexpected error occurred',f'{e}')
         finally:
             # Ensure the cursor and connection are closed
             if cur is not None:
@@ -159,15 +159,15 @@ class InventoryApp(BoxLayout):
                     self.clear_widgets()
                     self.post_login_window1()
                 else:
-                    self.show_login_error_popup('Incorrect username or password')
+                    self.show_popup('Login Error','Incorrect username or password')
             else:
-                self.show_login_error_popup('Incorrect username or password')
+                self.show_popup('Login Error','Incorrect username or password')
 
             cnx.close()
             self.message()
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_login_error_popup('Database error')
+            self.show_popup('Database error',f'{e}')
     
     def back(self, instance):
     
@@ -348,11 +348,17 @@ class InventoryApp(BoxLayout):
 
             id = id_list[0]
 
-            name = self.itemname_input.text
-            quantity = int(self.quantity_input.text)
-            order_price = float(self.order_price_input.text)
-            selling_price = float(self.selling_price_input.text)
+            name = self.itemname_input.text.capitalize()
+            quantity = self.quantity_input.text.strip()
+            order_price = float(self.order_price_input.text.strip())
+            selling_price = float(self.selling_price_input.text.strip())
             date=datetime.now()
+
+            
+            # Validate inputs
+            if not item_name or not new_quantity.isdigit() or not order_price.replace('.', '', 1).isdigit() or not selling_price.replace('.', '', 1).isdigit():
+                self.show_popup('Validate input','Invalid input. Please check your entries.')
+                return
            
 
             cur.execute("select itemname from Items where ownerid=%s",(id,))
@@ -368,7 +374,7 @@ class InventoryApp(BoxLayout):
 
                     if order_price!=output[2] and selling_price!=output[3]:
                         logging.error(f"Information error")
-                        self.show_login_error_popup('Order and selling price do not match with the previous orders!!')
+                        self.show_popup('Order and selling price do not match with the previous orders!!')
                         return
                     else:
                         new_ordered=output[0]+quantity
@@ -395,10 +401,10 @@ class InventoryApp(BoxLayout):
             self.addition()
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_login_error_popup('Database error')
+            self.show_popup('Database error',f'{e}')
         except ValueError:
             logging.error(f"Input Error.")
-            self.show_login_error_popup('Please enter the correct details!')
+            self.show_popup('Please enter the correct details!')
 
        
 
@@ -422,7 +428,7 @@ class InventoryApp(BoxLayout):
             id_list = cur.fetchone()
 
             if id_list is None:
-                self.show_login_error_popup('User not found')
+                self.show_popup('User not found')
                 return
 
             owner_id = id_list[0]
@@ -475,10 +481,10 @@ class InventoryApp(BoxLayout):
 
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_login_error_popup('Database error')
+            self.show_popup('Database error',f'{e}')
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
-            self.show_login_error_popup('An unexpected error occurred')
+            self.show_popup('An unexpected error occurred',f'{e}')
         finally:
             # Ensure the cursor and connection are closed
             if cur is not None:
@@ -562,7 +568,7 @@ class InventoryApp(BoxLayout):
 
             # Validate inputs
             if not item_name or not new_quantity.isdigit() or not new_order_price.replace('.', '', 1).isdigit() or not new_selling_price.replace('.', '', 1).isdigit():
-                self.show_login_error_popup('Invalid input. Please check your entries.')
+                self.show_popup('Validate input','Invalid input. Please check your entries.')
                 return
 
             # Check if the item exists for the given owner
@@ -588,10 +594,10 @@ class InventoryApp(BoxLayout):
 
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_login_error_popup('Database error')
+            self.show_popup('Database error',f'{e}')
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
-            self.show_login_error_popup('An unexpected error occurred')
+            self.show_popup('An unexpected error occurred',f'{e}')
         finally:
             # Ensure the cursor and connection are closed
             if cur:
@@ -674,10 +680,10 @@ class InventoryApp(BoxLayout):
 
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_login_error_popup('Database error')
+            self.show_popup('Database error',f'{e}')
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
-            self.show_login_error_popup('An unexpected error occurred')
+            self.show_popup('An unexpected error occurred',f'{e}')
         finally:
             # Ensure the cursor and connection are closed
             if cur:
@@ -761,7 +767,7 @@ class InventoryApp(BoxLayout):
             self.show_register_success_popup()
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_register_error_popup('Database error')
+            self.show_popup('Database error',f'{e}')
 
     def back_to_login(self, instance):
         self.clear_widgets()
@@ -943,13 +949,24 @@ class InventoryApp(BoxLayout):
             query2 = "SELECT id FROM Owner WHERE username = %s"
             cur.execute(query2, (self.username_input.text,))
 
+            
+
             id_list = cur.fetchone()
 
-            id = id_list[0]
+            # Check if the owner ID was found
+            if id_list is None:
+                self.show_popup('Error','User id not found')  # Handle case where username is not found
+                return
 
+            id = id_list[0]
+            amount = self.amount1_input.text.strip()
             code = str(self.code1_input.text.strip())
-            amount = int(self.amount1_input.text.strip())
             date=datetime.now()
+
+            # Validate inputs
+            if not code or not amount.isdigit():
+                self.show_popup('Validate input','Invalid input. Please check your entries.')
+                return
 
             cur.execute("select code from Codes where ownerid=%s",(id,))
 
@@ -958,7 +975,7 @@ class InventoryApp(BoxLayout):
             for codes in code_list:
                 if code in code_list[0]:                      
                     logging.error(f"Input Error.")
-                    self.show_login_error_popup('Discount Code Exists!')
+                    self.show_popup('Discount Code Exists!')
                     return
                     
             query4 = "INSERT INTO Codes(code, amount, ownerid, date) VALUES (%s, %s, %s, %s)"
@@ -969,10 +986,10 @@ class InventoryApp(BoxLayout):
             self.addition()
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_login_error_popup('Database error')
+            self.show_popup('Database error',f'{e}')
         except ValueError:
             logging.error(f"Input Error.")
-            self.show_login_error_popup('Please enter the correct details!')
+            self.show_popup('Input Error.','Please enter the correct details!')
     def sell_at_discount(self, instance):
         cnx = None
         cur = None
@@ -989,7 +1006,7 @@ class InventoryApp(BoxLayout):
             # Fetch the owner ID based on the username
             username = self.username_input.text.strip()
             if not username:
-                self.show_login_error_popup('Username cannot be empty.')
+                self.show_popup('Username cannot be empty.')
                 return
 
             query_owner_id = "SELECT id FROM Owner WHERE username = %s"
@@ -1003,10 +1020,15 @@ class InventoryApp(BoxLayout):
             owner_id = owner_id_result[0]
 
             # Get item details from user input
-            item_name = self.itemname_input.text.strip()
-            quantity_to_sell = int(self.quantity_input.text.strip())
+            item_name = self.itemname_input.text.strip().capitalize()  
+            quantity_to_sell = self.quantity_input.text.strip()
             discount_code=self.code_input.text.strip()
             current_date = datetime.now()
+
+            # Validate inputs
+            if not item_name or not quantity_to_sell.isdigit() or not discount_code:
+                self.show_popup('Validate input','Invalid input. Please check your entries.')
+                return
             
             #Get discount codes from user database and pair with amount
             cur.execute("select code from Codes where ownerid = %s ",(owner_id,))
@@ -1057,10 +1079,10 @@ class InventoryApp(BoxLayout):
             
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_login_error_popup('Database error')
+            self.show_popup('Database error',f'{e}')
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
-            self.show_login_error_popup('An unexpected error occurred')
+            self.show_popup('An unexpected error occurred',f'{e}')
         finally:
             # Ensure the cursor and connection are closed
             if cur:
@@ -1084,7 +1106,7 @@ class InventoryApp(BoxLayout):
             # Fetch the owner ID based on the username
             username = self.username_input.text.strip()
             if not username:
-                self.show_login_error_popup('Username cannot be empty.')
+                self.show_popup('Username cannot be empty.')
                 return
 
             query_owner_id = "SELECT id FROM Owner WHERE username = %s"
@@ -1099,8 +1121,13 @@ class InventoryApp(BoxLayout):
 
             # Get item details from user input
             item_name = self.sitemname_input.text.strip()
-            quantity_to_sell = int(self.squantity_input.text.strip())
+            quantity_to_sell = self.squantity_input.text.strip()
             current_date = datetime.now()
+
+            # Validate inputs
+            if not item_name or not quantity_to_sell.isdigit():
+                self.show_popup('Validate input','Invalid input. Please check your entries.')
+                return
 
             # Check if the item exists and get available quantity and selling price
             query_item = "SELECT id, Available_quantity,selling_price FROM Items WHERE itemname = %s AND ownerid = %s"
@@ -1133,10 +1160,10 @@ class InventoryApp(BoxLayout):
 
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_login_error_popup('Database error')
+            self.show_popup('Database error',f'{e}')
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
-            self.show_login_error_popup('An unexpected error occurred')
+            self.show_popup('An unexpected error occurred',f'{e}')
         finally:
             # Ensure the cursor and connection are closed
             if cur:
@@ -1159,7 +1186,7 @@ class InventoryApp(BoxLayout):
             # Fetch the owner ID based on the username
             username = self.username_input.text.strip()
             if not username:
-                self.show_login_error_popup('Username cannot be empty.')
+                self.show_popup('Input','Username cannot be empty.')
                 return
 
             query_owner_id = "SELECT id FROM Owner WHERE username = %s"
@@ -1167,7 +1194,7 @@ class InventoryApp(BoxLayout):
             owner_id_result = cur.fetchone()
 
             if owner_id_result is None:
-                self.show_login_error_popup('User not found.')
+                self.show_popup('Input error','User not found.')
                 return
 
             owner_id = owner_id_result[0]
@@ -1248,10 +1275,10 @@ class InventoryApp(BoxLayout):
 
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_login_error_popup('Database error')
+            self.show_popup('Database error',f'{e}')
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
-            self.show_login_error_popup('An unexpected error occurred')
+            self.show_popup('An unexpected error occurred',f'{e}')
         finally:
             # Ensure the cursor and connection are closed
             if cur:
@@ -1274,7 +1301,7 @@ class InventoryApp(BoxLayout):
             # Fetch the owner ID based on the username
             username = self.username_input.text.strip()
             if not username:
-                self.show_login_error_popup('Username cannot be empty.')
+                self.show_popup('Username cannot be empty.')
                 return
 
             query_owner_id = "SELECT id FROM Owner WHERE username = %s"
@@ -1282,7 +1309,7 @@ class InventoryApp(BoxLayout):
             owner_id_result = cur.fetchone()
 
             if owner_id_result is None:
-                self.show_login_error_popup('User not found.')
+                self.show_popup('Input error','User not found.')
                 return
 
             owner_id = owner_id_result[0]
@@ -1355,10 +1382,10 @@ class InventoryApp(BoxLayout):
 
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_login_error_popup('Database error')
+            self.show_popup('Database error',f'{e}')
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
-            self.show_login_error_popup('An unexpected error occurred')
+            self.show_popup('An unexpected error occurred',f'{e}')
         finally:
             # Ensure the cursor and connection are closed
             if cur:
@@ -1394,7 +1421,7 @@ class InventoryApp(BoxLayout):
             # Fetch the owner ID based on the username
             username = self.username_input.text.strip()
             if not username:
-                self.show_login_error_popup('Username cannot be empty.')
+                self.show_popup('Username cannot be empty.')
                 return
 
             query_owner_id = "SELECT id FROM Owner WHERE username = %s"
@@ -1402,7 +1429,7 @@ class InventoryApp(BoxLayout):
             owner_id_result = cur.fetchone()
 
             if owner_id_result is None:
-                self.show_login_error_popup('User not found.')
+                self.show_popup('Input error','User not found.')
                 return
 
             owner_id = owner_id_result[0]
@@ -1464,10 +1491,10 @@ class InventoryApp(BoxLayout):
 
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_login_error_popup('Database error')
+            self.show_popup('Database error',f'{e}')
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
-            self.show_login_error_popup('An unexpected error occurred')
+            self.show_popup('An unexpected error occurred',f'{e}')
         finally:
             # Ensure the cursor and connection are closed
             if cur:
