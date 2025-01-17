@@ -7,6 +7,8 @@ from kivy.uix.popup import Popup
 from kivy.graphics import Color, Rectangle
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.scrollview import ScrollView
+from plyer import notification
+import time
 import mysql.connector
 import bcrypt
 import os
@@ -68,8 +70,69 @@ class InventoryApp(BoxLayout):
         self.rect.pos = self.pos
         self.rect.size = self.size
 
+    def message(self):
+        cnx = None
+        cur = None
+        try:
+            # Establish a database connection
+            cnx = mysql.connector.connect(
+                user='Practice',
+                password='Root',
+                host='localhost',
+                database='inventory'
+            )
+            cur = cnx.cursor()
+
+            # Fetch the owner ID based on the username
+            query2 = "SELECT id FROM Owner WHERE username = %s"
+            cur.execute(query2, (self.username_input.text,))
+            id_list = cur.fetchone()
+
+            if id_list is None:
+                self.show_login_error_popup('User not found')
+                return
+
+            owner_id = id_list[0]
+
+            # Fetch items associated with the owner ID
+            query4 = "SELECT itemname, Available_quantity FROM Items WHERE ownerid = %s"
+            cur.execute(query4, (owner_id,))
+            result = cur.fetchall()
+
+            limit=10
+            message=""
+            for item in result:
+                if item[1]==0:
+                    message+=f"{item[0]} currently unvailable!\n"
+
+                elif item[1]<=limit:
+                    message+=f"{item[0]} Only {item[1]} remaining.Please order more to avoid a stockout!!\n"
+            
+            notification.notify(
+            title="Low stock alert!!",
+            message=message,
+            app_name="Inventory manager",
+            app_icon='dmi-logo.jpg',  # e.g. '/path/to/icon_32x32.png'
+            timeout=10  # Duration in seconds
+            )
+            return
+
+        except mysql.connector.Error as e:
+            logging.error(f"Database error: {e}")
+            self.show_login_error_popup('Database error')
+        except Exception as e:
+            logging.error(f"Unexpected error: {e}")
+            self.show_login_error_popup('An unexpected error occurred')
+        finally:
+            # Ensure the cursor and connection are closed
+            if cur is not None:
+                cur.close()
+            if cnx is not None:
+                cnx.close()
+
     def login(self, instance):
         try:
+            
             username = self.username_input.text
             password = self.password_input.text
 
@@ -101,6 +164,7 @@ class InventoryApp(BoxLayout):
                 self.show_login_error_popup('Incorrect username or password')
 
             cnx.close()
+            self.message()
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
             self.show_login_error_popup('Database error')
@@ -342,6 +406,7 @@ class InventoryApp(BoxLayout):
         cnx = None
         cur = None
         try:
+            self.message()
             # Establish a database connection
             cnx = mysql.connector.connect(
                 user='Practice',
@@ -1480,6 +1545,7 @@ class InventoryAppApp(App):
         return InventoryApp()
 
 if __name__ == '__main__':
+    
     InventoryAppApp().run()
 
 
