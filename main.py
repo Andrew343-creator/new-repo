@@ -331,8 +331,9 @@ class InventoryApp(BoxLayout):
         self.add_widget(self.back_button)
     
     
-    def add(self,instance):
+    def add(self, instance):
         try:
+            # Establish a database connection
             cnx = mysql.connector.connect(
                 user='Practice',
                 password='Root',
@@ -341,70 +342,91 @@ class InventoryApp(BoxLayout):
             )
             cur = cnx.cursor()
 
+            # Get the owner ID
             query2 = "SELECT id FROM Owner WHERE username = %s"
             cur.execute(query2, (self.username_input.text,))
 
             id_list = cur.fetchone()
 
+            if id_list is None:
+                self.show_popup('Error', 'Owner not found')
+                return
+
             id = id_list[0]
 
+            # Get the item details
             name = self.itemname_input.text.capitalize()
-            quantity = self.quantity_input.text.strip()
-            order_price = float(self.order_price_input.text.strip())
-            selling_price = float(self.selling_price_input.text.strip())
-            date=datetime.now()
-
-            
-            # Validate inputs
-            if not item_name or not new_quantity.isdigit() or not order_price.replace('.', '', 1).isdigit() or not selling_price.replace('.', '', 1).isdigit():
-                self.show_popup('Validate input','Invalid input. Please check your entries.')
+            try:
+                quantity = int(self.quantity_input.text.strip())
+                if quantity <= 0:
+                    self.show_popup('Error', 'Quantity must be a positive integer')
+                    return
+            except ValueError:
+                self.show_popup('Error', 'Quantity must be an integer')
                 return
-           
 
-            cur.execute("select itemname from Items where ownerid=%s",(id,))
+            try:
+                order_price = float(self.order_price_input.text.strip())
+                if order_price <= 0:
+                    self.show_popup('Error', 'Order price must be a positive number')
+                    return
+            except ValueError:
+                self.show_popup('Error', 'Order price must be a number')
+                return
 
-            results=cur.fetchall()
+            try:
+                selling_price = float(self.selling_price_input.text.strip())
+                if selling_price <= 0:
+                    self.show_popup('Error', 'Selling price must be a positive number')
+                    return
+            except ValueError:
+                self.show_popup('Error', 'Selling price must be a number')
+                return
+
+            date = datetime.now()
+
+            # Check if the item already exists
+            cur.execute("SELECT itemname FROM Items WHERE ownerid = %s", (id,))
+            results = cur.fetchall()
 
             for result in results:
                 if name in result[0]:
-                    
-                    query="select Ordered_quantity,Available_quantity, order_price, selling_price from Items where itemname=%s and ownerid=%s"
-                    cur.execute(query,(name,id))
-                    output=cur.fetchone()
+                    # Update the existing item
+                    query = "SELECT Ordered_quantity, Available_quantity, order_price, selling_price FROM Items WHERE itemname = %s AND ownerid = %s"
+                    cur.execute(query, (name, id))
+                    output = cur.fetchone()
 
-                    if order_price!=output[2] and selling_price!=output[3]:
+                    if order_price != output[2] or selling_price != output[3]:
                         logging.error(f"Information error")
-                        self.show_popup('Order and selling price do not match with the previous orders!!')
+                        self.show_popup('Error', 'Order and selling price do not match with the previous orders')
                         return
                     else:
-                        new_ordered=output[0]+quantity
-                        new_available=output[1]+quantity
+                        new_ordered = output[0] + quantity
+                        new_available = output[1] + quantity
 
-                        query2="UPDATE Items SET Ordered_quantity = %s, Available_quantity=%s, date=%s WHERE itemname =%s AND ownerid = %s"
-
-                        cur.execute(query2,(new_ordered,new_available,date,name,id,))
-                        
+                        query2 = "UPDATE Items SET Ordered_quantity = %s, Available_quantity = %s, date = %s WHERE itemname = %s AND ownerid = %s"
+                        cur.execute(query2, (new_ordered, new_available, date, name, id))
                         cnx.commit()
                         self.addition()
                         return
-                        
-                    
-                    
 
-
-
-            query4 = "INSERT INTO Items(ownerid, itemname, Ordered_quantity,Available_quantity, order_price,selling_price,date) VALUES (%s, %s, %s,%s, %s,%s,%s)"
-            cur.execute(query4, (id, name, quantity,quantity, order_price,selling_price,date))
+                    # Add a new item
+            query4 = "INSERT INTO Items (ownerid, itemname, Ordered_quantity, Available_quantity, order_price, selling_price, date) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+            cur.execute(query4, (id, name, quantity, quantity, order_price, selling_price, date))
 
             cnx.commit()
-            cnx.close()
             self.addition()
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_popup('Database error',f'{e}')
+            self.show_popup('Database error', f'{e}')
         except ValueError:
             logging.error(f"Input Error.")
             self.show_popup('Please enter the correct details!')
+        finally:
+            if 'cnx' in locals():
+                cnx.close()
+
+
 
        
 
@@ -991,8 +1013,6 @@ class InventoryApp(BoxLayout):
             logging.error(f"Input Error.")
             self.show_popup('Input Error.','Please enter the correct details!')
     def sell_at_discount(self, instance):
-        cnx = None
-        cur = None
         try:
             # Establish a connection to the database
             cnx = mysql.connector.connect(
@@ -1020,79 +1040,79 @@ class InventoryApp(BoxLayout):
             owner_id = owner_id_result[0]
 
             # Get item details from user input
-            item_name = self.itemname_input.text.strip().capitalize()  
-            quantity_to_sell = self.quantity_input.text.strip()
-            discount_code=self.code_input.text.strip()
+            item_name = self.itemname_input.text.strip().capitalize()
+            try:
+                quantity_to_sell = int(self.quantity_input.text.strip())
+                if quantity_to_sell <= 0:
+                    self.show_popup('Quantity must be a positive integer.')
+                    return
+            except ValueError:
+                self.show_popup('Quantity must be an integer.')
+                return
+
+            discount_code = self.code_input.text.strip()
             current_date = datetime.now()
 
             # Validate inputs
-            if not item_name or not quantity_to_sell.isdigit() or not discount_code:
-                self.show_popup('Validate input','Invalid input. Please check your entries.')
+            if not item_name or not discount_code:
+                self.show_popup('Validate input', 'Invalid input. Please check your entries.')
                 return
-            
-            #Get discount codes from user database and pair with amount
-            cur.execute("select code from Codes where ownerid = %s ",(owner_id,))
-            codes=cur.fetchone()
-            if discount_code==codes[0]:
-            
-                    
-                    cur.execute("select amount from Codes where ownerid=%s and code=%s",(owner_id,discount_code))
-                    amount_list=cur.fetchone()
-                    total_discount=amount_list[0]
-                    discount_per_item=total_discount/quantity_to_sell
 
+            # Get discount codes from user database and pair with amount
+            cur.execute("SELECT code FROM Codes WHERE ownerid = %s", (owner_id,))
+            codes = cur.fetchone()
+            if discount_code == codes[0]:
+                cur.execute("SELECT amount FROM Codes WHERE ownerid = %s AND code = %s", (owner_id, discount_code))
+                amount_list = cur.fetchone()
+                total_discount = amount_list[0]
+                discount_per_item = total_discount / quantity_to_sell
 
-                    # Check if the item exists and get available quantity
-                    query_item = "SELECT id, Available_quantity, selling_price FROM Items WHERE itemname = %s AND ownerid = %s"
-                    cur.execute(query_item, (item_name, owner_id))
-                    item_result = cur.fetchone()
+                # Check if the item exists and get available quantity
+                query_item = "SELECT id, Available_quantity, selling_price FROM Items WHERE itemname = %s AND ownerid = %s"
+                cur.execute(query_item, (item_name, owner_id))
+                item_result = cur.fetchone()
 
-                    if item_result is None:
-                        self.item_does_not_exist()  # Handle case where item does not exist 
-                        return
-                    item_id, available_quantity,sell_price = item_result
-
-                        # Check if there is enough quantity available
-                    if quantity_to_sell > available_quantity:
-                        self.quantity_does_not_exist()  # Handle case where quantity is insufficient
-                        return
-                    #Calculate the new sell price after discount
-                    new_sell_price=sell_price-discount_per_item
-                    
-                    # Insert the sale record
-                    insert_query = "INSERT INTO Sold(itemid, sold_quantity,selling_price,discount_amount, date) VALUES (%s, %s, %s,%s,%s)"
-                    cur.execute(insert_query, (item_id, quantity_to_sell, new_sell_price,discount_per_item,current_date))
-
-                    # Update the available quantity in the Items table
-                    new_available_quantity = available_quantity - quantity_to_sell
-                    update_query = "UPDATE Items SET Available_quantity = %s WHERE id = %s"
-                    cur.execute(update_query, (new_available_quantity, item_id))
-
-                    # Commit the changes
-                    cnx.commit()
-                    self.sellation()  # Notify user of successful sale
+                if item_result is None:
+                    self.item_does_not_exist()  # Handle case where item does not exist
                     return
-            else:
-                    print("Not Good")
+                item_id, available_quantity, sell_price = item_result
+
+                # Check if there is enough quantity available
+                if quantity_to_sell > available_quantity:
+                    self.quantity_does_not_exist()  # Handle case where quantity is insufficient
                     return
-                
-            
+
+                # Calculate the new sell price after discount
+                new_sell_price = sell_price - discount_per_item
+
+                # Insert the sale record
+                insert_query = "INSERT INTO Sold(itemid, sold_quantity, selling_price, discount_amount, date) VALUES (%s, %s, %s, %s, %s)"
+                cur.execute(insert_query, (item_id, quantity_to_sell, new_sell_price, discount_per_item, current_date))
+
+                # Update the available quantity in the Items table
+                new_available_quantity = available_quantity - quantity_to_sell
+                update_query = "UPDATE Items SET Available_quantity = %s WHERE id = %s"
+                cur.execute(update_query, (new_available_quantity, item_id))
+
+                # Commit the changes
+                cnx.commit()
+                self.sellation()  # Notify user of successful sale
+
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_popup('Database error',f'{e}')
+            self.show_popup('Database error', f'{e}')
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
-            self.show_popup('An unexpected error occurred',f'{e}')
+            self.show_popup('An unexpected error occurred', f'{e}')
         finally:
             # Ensure the cursor and connection are closed
             if cur:
                 cur.close()
             if cnx:
                 cnx.close()
+
     
     def sell(self, instance):
-        cnx = None
-        cur = None
         try:
             # Establish a connection to the database
             cnx = mysql.connector.connect(
@@ -1121,13 +1141,16 @@ class InventoryApp(BoxLayout):
 
             # Get item details from user input
             item_name = self.sitemname_input.text.strip()
-            quantity_to_sell = self.squantity_input.text.strip()
-            current_date = datetime.now()
-
-            # Validate inputs
-            if not item_name or not quantity_to_sell.isdigit():
-                self.show_popup('Validate input','Invalid input. Please check your entries.')
+            try:
+                quantity_to_sell = int(self.squantity_input.text.strip())
+                if quantity_to_sell <= 0:
+                    self.show_popup('Quantity must be a positive integer.')
+                    return
+            except ValueError:
+                self.show_popup('Quantity must be an integer.')
                 return
+
+            current_date = datetime.now()
 
             # Check if the item exists and get available quantity and selling price
             query_item = "SELECT id, Available_quantity,selling_price FROM Items WHERE itemname = %s AND ownerid = %s"
@@ -1138,7 +1161,7 @@ class InventoryApp(BoxLayout):
                 self.item_does_not_exist()  # Handle case where item does not exist
                 return
 
-            item_id, available_quantity, sell_price= item_result
+            item_id, available_quantity, sell_price = item_result
 
             # Check if there is enough quantity available
             if quantity_to_sell > available_quantity:
@@ -1147,29 +1170,30 @@ class InventoryApp(BoxLayout):
 
             # Insert the sale record
             insert_query = "INSERT INTO Sold(itemid, sold_quantity,selling_price,discount_amount, date) VALUES (%s, %s, %s, %s,%s)"
-            cur.execute(insert_query, (item_id, quantity_to_sell,sell_price,0,current_date))
+            cur.execute(insert_query, (item_id, quantity_to_sell, sell_price, 0, current_date))
 
             # Update the available quantity in the Items table
             new_available_quantity = available_quantity - quantity_to_sell
             update_query = "UPDATE Items SET Available_quantity = %s WHERE id = %s"
             cur.execute(update_query, (new_available_quantity, item_id))
-            
+
             # Commit the changes
             cnx.commit()
             self.sellation()  # Notify user of successful sale
 
         except mysql.connector.Error as e:
             logging.error(f"Database error: {e}")
-            self.show_popup('Database error',f'{e}')
+            self.show_popup('Database error', f'{e}')
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
-            self.show_popup('An unexpected error occurred',f'{e}')
+            self.show_popup('An unexpected error occurred', f'{e}')
         finally:
             # Ensure the cursor and connection are closed
             if cur:
                 cur.close()
             if cnx:
                 cnx.close()
+
     def attained_profits(self, instance):
         cnx = None
         cur = None
