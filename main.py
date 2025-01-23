@@ -421,7 +421,7 @@ class InventoryApp(BoxLayout):
             self.show_popup('Database error', f'{e}')
         except ValueError:
             logging.error(f"Input Error.")
-            self.show_popup('Please enter the correct details!')
+            self.show_popup('Error','Please enter the correct details!')
         finally:
             if 'cnx' in locals():
                 cnx.close()
@@ -450,7 +450,7 @@ class InventoryApp(BoxLayout):
             id_list = cur.fetchone()
 
             if id_list is None:
-                self.show_popup('User not found')
+                self.show_popup('Error','User not found')
                 return
 
             owner_id = id_list[0]
@@ -997,7 +997,7 @@ class InventoryApp(BoxLayout):
             for codes in code_list:
                 if code in code_list[0]:                      
                     logging.error(f"Input Error.")
-                    self.show_popup('Discount Code Exists!')
+                    self.show_popup('Input Error','Discount Code Exists!')
                     return
                     
             query4 = "INSERT INTO Codes(code, amount, ownerid, date) VALUES (%s, %s, %s, %s)"
@@ -1026,7 +1026,7 @@ class InventoryApp(BoxLayout):
             # Fetch the owner ID based on the username
             username = self.username_input.text.strip()
             if not username:
-                self.show_popup('Username cannot be empty.')
+                self.show_popup('Error','Username cannot be empty.')
                 return
 
             query_owner_id = "SELECT id FROM Owner WHERE username = %s"
@@ -1044,10 +1044,10 @@ class InventoryApp(BoxLayout):
             try:
                 quantity_to_sell = int(self.quantity_input.text.strip())
                 if quantity_to_sell <= 0:
-                    self.show_popup('Quantity must be a positive integer.')
+                    self.show_popup('Error','Quantity must be a positive integer.')
                     return
             except ValueError:
-                self.show_popup('Quantity must be an integer.')
+                self.show_popup('Error','Quantity must be an integer.')
                 return
 
             discount_code = self.code_input.text.strip()
@@ -1126,7 +1126,7 @@ class InventoryApp(BoxLayout):
             # Fetch the owner ID based on the username
             username = self.username_input.text.strip()
             if not username:
-                self.show_popup('Username cannot be empty.')
+                self.show_popup('Error','Username cannot be empty.')
                 return
 
             query_owner_id = "SELECT id FROM Owner WHERE username = %s"
@@ -1144,10 +1144,10 @@ class InventoryApp(BoxLayout):
             try:
                 quantity_to_sell = int(self.squantity_input.text.strip())
                 if quantity_to_sell <= 0:
-                    self.show_popup('Quantity must be a positive integer.')
+                    self.show_popup('Error','Quantity must be a positive integer.')
                     return
             except ValueError:
-                self.show_popup('Quantity must be an integer.')
+                self.show_popup('Error','Quantity must be an integer.')
                 return
 
             current_date = datetime.now()
@@ -1325,7 +1325,7 @@ class InventoryApp(BoxLayout):
             # Fetch the owner ID based on the username
             username = self.username_input.text.strip()
             if not username:
-                self.show_popup('Username cannot be empty.')
+                self.show_popup('Error','Username cannot be empty.')
                 return
 
             query_owner_id = "SELECT id FROM Owner WHERE username = %s"
@@ -1445,7 +1445,7 @@ class InventoryApp(BoxLayout):
             # Fetch the owner ID based on the username
             username = self.username_input.text.strip()
             if not username:
-                self.show_popup('Username cannot be empty.')
+                self.show_popup('Error','Username cannot be empty.')
                 return
 
             query_owner_id = "SELECT id FROM Owner WHERE username = %s"
