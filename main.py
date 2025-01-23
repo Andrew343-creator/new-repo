@@ -9,7 +9,9 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.scrollview import ScrollView
 from plyer import notification
 import time
+import re
 import mysql.connector
+from mysql.connector import Error
 import bcrypt
 import os
 import logging
@@ -70,10 +72,29 @@ class InventoryApp(BoxLayout):
         self.rect.pos = self.pos
         self.rect.size = self.size
 
-    def message(self):
-        cnx = None
-        cur = None
+    
+
+    def login(self, instance):
         try:
+            # Get the username and password from the input fields
+            username = self.username_input.text
+            password = self.password_input.text
+
+            # Validate the input
+            if not username or not password:
+                self.show_login_error_popup('Please enter all fields')
+                return
+
+            # Validate the username
+            if not self.validate_username(username):
+                self.show_login_error_popup('Invalid username')
+                return
+
+            # Validate the password
+            if not self.validate_password(password):
+                self.show_login_error_popup('Invalid password')
+                return
+
             # Establish a database connection
             cnx = mysql.connector.connect(
                 user='Practice',
@@ -81,94 +102,50 @@ class InventoryApp(BoxLayout):
                 host='localhost',
                 database='inventory'
             )
+
             cur = cnx.cursor()
 
-            # Fetch the owner ID based on the username
-            query2 = "SELECT id FROM Owner WHERE username = %s"
-            cur.execute(query2, (self.username_input.text,))
-            id_list = cur.fetchone()
-
-            if id_list is None:
-                self.show_popup('Error','User not found')
-                return
-
-            owner_id = id_list[0]
-
-            # Fetch items associated with the owner ID
-            query4 = "SELECT itemname, Available_quantity FROM Items WHERE ownerid = %s"
-            cur.execute(query4, (owner_id,))
-            result = cur.fetchall()
-
-            limit=10
-            message=""
-            for item in result:
-                if item[1]==0:
-                    message+=f"{item[0]} currently unvailable!\n"
-
-                elif item[1]<=limit:
-                    message+=f"{item[0]} Only {item[1]} remaining.Please order more to avoid a stockout!!\n"
-            
-            notification.notify(
-            title="Low stock alert!!",
-            message=message,
-            app_name="Inventory manager",
-            app_icon='dmi-logo.jpg',  # e.g. '/path/to/icon_32x32.png'
-            timeout=10  # Duration in seconds
-            )
-            return
-
-        except mysql.connector.Error as e:
-            logging.error(f"Database error: {e}")
-            self.show_popup('Database error',f'{e}')
-        except Exception as e:
-            logging.error(f"Unexpected error: {e}")
-            self.show_popup('An unexpected error occurred',f'{e}')
-        finally:
-            # Ensure the cursor and connection are closed
-            if cur is not None:
-                cur.close()
-            if cnx is not None:
-                cnx.close()
-
-    def login(self, instance):
-        try:
-            
-            username = self.username_input.text
-            password = self.password_input.text
-
-            if not username or not password:
-                self.show_login_error_popup('Please enter all fields')
-                return
-
-            cnx = mysql.connector.connect(
-                user='Practice',
-                password='Root',
-                host='localhost',
-                database='inventory'
-            )
-            cur = cnx.cursor()
-
+            # Use a parameterized query to prevent SQL injection
             query = "SELECT password FROM Owner WHERE username = %s"
             cur.execute(query, (username,))
 
+            # Fetch the result
             result = cur.fetchone()
+
+            # Check if the username exists
             if result:
-                stored_password = result[0]
+                # Get the stored password
+                stored_password = result[0]  # Fetch the stored password
+
+                # Check if the password is correct
                 if bcrypt.checkpw(password.encode(), stored_password.encode()):
+                    # Login successful
                     self.show_login_success_popup()
                     self.clear_widgets()
                     self.post_login_window1()
                 else:
-                    self.show_popup('Login Error','Incorrect username or password')
+                    # Incorrect password
+                    self.show_popup('Login Error', 'Incorrect username or password')
             else:
-                self.show_popup('Login Error','Incorrect username or password')
+                # Username does not exist
+                self.show_popup('Login Error', 'Incorrect username or password')
 
-            cnx.close()
-            self.message()
-        except mysql.connector.Error as e:
+        except Error as e:
+            # Log the error and display a generic error message
             logging.error(f"Database error: {e}")
-            self.show_popup('Database error',f'{e}')
-    
+            self.show_popup('Database error', 'An error occurred while connecting to the database')
+
+    def validate_username(self, username):
+        # Check if the username is alphanumeric and between 3 and 20 characters
+        if re.match('^[a-zA-Z0-9]{3,20}$', username):
+            return True
+        return False
+
+    def validate_password(self, password):
+        # Check if the password is between 8 and 50 characters and contains at least one uppercase letter, one lowercase letter, and one digit
+        if re.match('^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,50}$', password):
+            return True
+        return False
     def back(self, instance):
     
         self.clear_widgets()
@@ -434,7 +411,7 @@ class InventoryApp(BoxLayout):
         cnx = None
         cur = None
         try:
-            self.message()
+           
             # Establish a database connection
             cnx = mysql.connector.connect(
                 user='Practice',
@@ -450,7 +427,7 @@ class InventoryApp(BoxLayout):
             id_list = cur.fetchone()
 
             if id_list is None:
-                self.show_popup('User not found')
+                self.show_popup('Error','User not found')
                 return
 
             owner_id = id_list[0]
@@ -751,45 +728,70 @@ class InventoryApp(BoxLayout):
 
     def register_user(self, instance):
         try:
-            cnx = mysql.connector.connect(
+            # Establish a connection to the database
+                cnx = mysql.connector.connect(
                 user='Practice',
                 password='Root',
                 host='localhost',
                 database='inventory'
             )
-            cur = cnx.cursor()
-            query2 = "SELECT username FROM Owner"
-            cur.execute(query2)
 
-            users = cur.fetchall()
+            # Use a context manager to ensure the connection is closed
+            
+                cur = cnx.cursor()
 
-            username = self.username_input.text
-            password = self.password_input.text
-            confirm_password = self.confirm_password_input.text
+                # Get the username, password, and confirm password from the input fields
+                username = self.username_input.text
+                password = self.password_input.text
+                confirm_password = self.confirm_password_input.text
 
-            if not username or not password or not confirm_password:
-                self.show_register_error_popup('Please enter all fields')
-                return
-            for user in users:
-                if username in user[0]:
-                    self.show_user_exists_popup()
+                # Validate the input
+                if not username or not password or not confirm_password:
+                    self.show_register_error_popup('Please enter all fields')
                     return
 
-            if password != confirm_password:
-                self.show_register_error_popup('Passwords do not match')
-                return
+                # Validate the username
+                if not self.validate_username(username):
+                    self.show_register_error_popup('Invalid username')
+                    return
 
-            query = "INSERT INTO Owner(username, password) VALUES (%s, %s)"
-            hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-            cur.execute(query, (username, hashed_password))
+                # Validate the password
+                if not self.validate_password(password):
+                    self.show_register_error_popup('Invalid password')
+                    return
 
-            cnx.commit()
-            cnx.close()
+                # Check if the password and confirm password match
+                if password != confirm_password:
+                    self.show_register_error_popup('Passwords do not match')
+                    return
 
-            self.show_register_success_popup()
-        except mysql.connector.Error as e:
+                # Check if the username is already taken
+                query2 = "SELECT username FROM Owner"
+                cur.execute(query2)
+
+                users = cur.fetchall()
+
+                for user in users:
+                    if username in user[0]:
+                        self.show_user_exists_popup()
+                        return
+
+                # Hash the password
+                hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+
+                # Insert the user into the database
+                
+                cur.execute("INSERT INTO Owner (username, password) VALUES (%s, %s)", (username, hashed_password.decode('utf-8')))
+
+                # Commit the changes
+                cnx.commit()
+
+                # Show a success message
+                self.show_register_success_popup()
+
+        except Error as e:
             logging.error(f"Database error: {e}")
-            self.show_popup('Database error',f'{e}')
+            self.show_popup('Database error', f'{e}')
 
     def back_to_login(self, instance):
         self.clear_widgets()
@@ -997,7 +999,7 @@ class InventoryApp(BoxLayout):
             for codes in code_list:
                 if code in code_list[0]:                      
                     logging.error(f"Input Error.")
-                    self.show_popup('Discount Code Exists!')
+                    self.show_popup('Error','Discount Code Exists!')
                     return
                     
             query4 = "INSERT INTO Codes(code, amount, ownerid, date) VALUES (%s, %s, %s, %s)"
@@ -1026,7 +1028,7 @@ class InventoryApp(BoxLayout):
             # Fetch the owner ID based on the username
             username = self.username_input.text.strip()
             if not username:
-                self.show_popup('Username cannot be empty.')
+                self.show_popup('Error','Username cannot be empty.')
                 return
 
             query_owner_id = "SELECT id FROM Owner WHERE username = %s"
@@ -1044,10 +1046,10 @@ class InventoryApp(BoxLayout):
             try:
                 quantity_to_sell = int(self.quantity_input.text.strip())
                 if quantity_to_sell <= 0:
-                    self.show_popup('Quantity must be a positive integer.')
+                    self.show_popup('Error','Quantity must be a positive integer.')
                     return
             except ValueError:
-                self.show_popup('Quantity must be an integer.')
+                self.show_popup('Error','Quantity must be an integer.')
                 return
 
             discount_code = self.code_input.text.strip()
@@ -1126,7 +1128,7 @@ class InventoryApp(BoxLayout):
             # Fetch the owner ID based on the username
             username = self.username_input.text.strip()
             if not username:
-                self.show_popup('Username cannot be empty.')
+                self.show_popup('Error','Username cannot be empty.')
                 return
 
             query_owner_id = "SELECT id FROM Owner WHERE username = %s"
@@ -1144,10 +1146,10 @@ class InventoryApp(BoxLayout):
             try:
                 quantity_to_sell = int(self.squantity_input.text.strip())
                 if quantity_to_sell <= 0:
-                    self.show_popup('Quantity must be a positive integer.')
+                    self.show_popup('Error','Quantity must be a positive integer.')
                     return
             except ValueError:
-                self.show_popup('Quantity must be an integer.')
+                self.show_popup('Error','Quantity must be an integer.')
                 return
 
             current_date = datetime.now()
@@ -1193,6 +1195,14 @@ class InventoryApp(BoxLayout):
                 cur.close()
             if cnx:
                 cnx.close()
+    def validate_quantity(self, quantity):
+        try:
+            quantity = int(quantity)
+            if quantity <= 0:
+                raise ValueError
+            return quantity
+        except ValueError:
+            raise ValueError
 
     def attained_profits(self, instance):
         cnx = None
@@ -1325,7 +1335,7 @@ class InventoryApp(BoxLayout):
             # Fetch the owner ID based on the username
             username = self.username_input.text.strip()
             if not username:
-                self.show_popup('Username cannot be empty.')
+                self.show_popup('Error','Username cannot be empty.')
                 return
 
             query_owner_id = "SELECT id FROM Owner WHERE username = %s"
@@ -1445,7 +1455,7 @@ class InventoryApp(BoxLayout):
             # Fetch the owner ID based on the username
             username = self.username_input.text.strip()
             if not username:
-                self.show_popup('Username cannot be empty.')
+                self.show_popup('Error','Username cannot be empty.')
                 return
 
             query_owner_id = "SELECT id FROM Owner WHERE username = %s"
