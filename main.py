@@ -67,6 +67,9 @@ class InventoryApp(BoxLayout):
         self.forgot_password_button.bind(on_press=self.forgot_password)
         self.add_widget(self.forgot_password_button)
 
+        self.threshold = 5
+
+
     # Update the rectangle's position and size when the layout changes
     def _update_rect(self, instance, value):
         self.rect.pos = self.pos
