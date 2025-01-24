@@ -17,6 +17,7 @@ import os
 import logging
 from datetime import datetime
 import database_checker
+from kivy.clock import Clock
 #Table creation
 database_checker
 # Set up logging
