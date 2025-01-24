@@ -302,6 +302,7 @@ class InventoryApp(BoxLayout):
 
         self.add_widget(self.button_layout)
 
+        Clock.schedule_interval(self.check_low_stock, 30)
     def update_background_rect(self, instance, value):  # Updated function name
         self.rect.pos = self.pos
         self.rect.size = self.size
