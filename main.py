@@ -71,7 +71,72 @@ class InventoryApp(BoxLayout):
     def _update_rect(self, instance, value):
         self.rect.pos = self.pos
         self.rect.size = self.size
+        
+    def check_low_stock(self, dt):
+        for product, level in self.stock().items():
+            if level <= self.threshold:
+                notification.notify(
+                    title='Low Stock Alert',
+                    message=f'{product} is running low ({level} remaining)',
+                    app_name='Low Stock Alert System',
+                    timeout=5
+                )
 
+       
+
+    def stock(self):
+        cnx = None
+        cur = None
+        try:
+            # Establish a database connection
+            cnx = mysql.connector.connect(
+                user='Practice',
+                password='Root',
+                host='localhost',
+                database='inventory'
+            )
+            cur = cnx.cursor()
+
+            # Fetch the owner ID based on the username
+            query2 = "SELECT id FROM Owner WHERE username = %s"
+            cur.execute(query2, (self.username_input.text,))
+            id_list = cur.fetchone()
+
+            if id_list is None:
+                self.show_popup('Error','User not found')
+                return
+
+            owner_id = id_list[0]
+
+            # Fetch items associated with the owner ID
+            query4 = "SELECT itemname, Available_quantity FROM Items WHERE ownerid = %s"
+            cur.execute(query4, (owner_id,))
+            result = cur.fetchall()
+
+            items={}
+
+            for item in result:
+                items[item[0]]=item[1]
+
+            return items
+
+
+
+            
+            
+
+        except mysql.connector.Error as e:
+            logging.error(f"Database error: {e}")
+            self.show_popup('Database error',f'{e}')
+        except Exception as e:
+            logging.error(f"Unexpected error: {e}")
+            self.show_popup('An unexpected error occurred',f'{e}')
+        finally:
+            # Ensure the cursor and connection are closed
+            if cur is not None:
+                cur.close()
+            if cnx is not None:
+                cnx.close()
     
 
     def login(self, instance):
